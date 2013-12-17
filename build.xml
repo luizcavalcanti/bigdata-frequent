@@ -7,13 +7,13 @@
     <property name="hadoop.dir" location="/usr/local/Cellar/hadoop/1.2.1/libexec/" />
     <property name="jar.name" value="frequent" />
 
-    <target name="init">
+    <target name="init" depends="clean">
         <tstamp/>
         <mkdir dir="${build.dir}"/>
     </target>
 
     <target name="compile" depends="init" >
-        <javac srcdir="${src.dir}" destdir="${build.dir}" target="1.6">
+        <javac srcdir="${src.dir}" destdir="${build.dir}" target="1.6" source="1.6">
             <classpath>
                 <fileset dir="${hadoop.dir}" >
                     <include name="hadoop-core-*.jar"/>
