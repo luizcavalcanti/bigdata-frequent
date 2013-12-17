@@ -12,7 +12,7 @@ $HADOOP_BASE/bin/hadoop dfs -rm $HFS_INPUT_DIR/*
 $HADOOP_BASE/bin/hadoop dfs -put data/file* $HFS_INPUT_DIR/
 
 # clean and recopy input content
-$HADOOP_BASE/bin/hadoop dfs -rmr $HFS_OUTPUT_DIR
+$HADOOP_BASE/bin/hadoop dfs -rmr $HFS_OUTPUT_DIR*
 
 # runs experiment
-$HADOOP_BASE/bin/hadoop jar dist/frequent.jar br.edu.ufam.icomp.MushroomCount $HFS_INPUT_DIR $HFS_OUTPUT_DIR
+$HADOOP_BASE/bin/hadoop jar dist/frequent.jar br.edu.ufam.icomp.MushroomCount $HFS_INPUT_DIR $HFS_OUTPUT_DIR 4 .6 3
