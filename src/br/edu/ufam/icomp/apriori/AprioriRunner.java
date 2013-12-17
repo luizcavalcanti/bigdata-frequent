@@ -1,4 +1,4 @@
-package br.edu.ufam.icomp;
+package br.edu.ufam.icomp.apriori;
 
 import java.io.IOException;
 
@@ -11,6 +11,8 @@ import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.util.Tool;
+
+import br.edu.ufam.icomp.MushroomCount;
 
 public class AprioriRunner extends Configured implements Tool {
 

@@ -1,4 +1,4 @@
-package br.edu.ufam.icomp;
+package br.edu.ufam.icomp.apriori;
 
 import java.io.IOException;
 
@@ -27,7 +27,8 @@ public class AprioriReduce extends Reducer<Text, IntWritable, Text, IntWritable>
     }
     
     private static boolean possuiSuporteMinimo(float suporteMinimo, int numeroRegistros, int contador) {
-        int suporte = (int) (suporteMinimo * numeroRegistros);
+        int suporte = (int) Math.ceil(suporteMinimo * numeroRegistros);
+        System.out.println("possuiSuporteMinimo: "+suporte+" || "+contador);
         if (contador >= suporte) {
             return true;
         }

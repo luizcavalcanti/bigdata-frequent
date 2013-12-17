@@ -1,4 +1,4 @@
-package br.edu.ufam.icomp;
+package br.edu.ufam.icomp.apriori;
 
 import java.io.IOException;
 
