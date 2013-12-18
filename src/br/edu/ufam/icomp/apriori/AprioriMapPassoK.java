@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
@@ -30,41 +31,38 @@ public class AprioriMapPassoK extends Mapper<Object, Text, Text, IntWritable> {
 
     @Override
     public void setup(Context context) throws IOException {
-        // Path[] uris =
-        // DistributedCache.getLocalCacheFiles(context.getConfiguration());
-
+        Path[] uris = DistributedCache.getLocalCacheFiles(context.getConfiguration());
         int passo = context.getConfiguration().getInt("passo", 2);
-        String outputPath = "/user/luiz/mushroom/output" + (passo - 1) + "/part-r-00000";
-        String opFileLastPass = context.getConfiguration().get("fs.default.name") + outputPath;
-        System.out.println("Distributed cache file to search " + opFileLastPass);
-
         try {
-            Path pt = new Path(opFileLastPass);
-            FileSystem fs = FileSystem.get(context.getConfiguration());
-            BufferedReader fis = new BufferedReader(new InputStreamReader(fs.open(pt)));
-            String linha = null;
-            while ((linha = fis.readLine()) != null) {
-                linha = linha.trim();
-                String[] words = linha.split("[\\s\\t]+");
-                if (words.length < 2) {
-                    continue;
-                }
-
-                List<String> items = new ArrayList<String>();
-                for (int k = 0; k < words.length - 1; k++) {
-                    String csvItemIds = words[k];
-                    String[] itemIds = csvItemIds.split(",");
-                    for (String item : itemIds) {
-                        items.add(item);
+            for (Path pt : uris) {
+                FileSystem fs = FileSystem.get(context.getConfiguration());
+                System.out.println("Path: "+pt.toUri().toASCIIString());
+                BufferedReader fis = new BufferedReader(new InputStreamReader(fs.open(pt)));
+                String linha = null;
+                while ((linha = fis.readLine()) != null) {
+                    linha = linha.trim();
+                    System.out.println("linha: "+linha);
+                    String[] words = linha.split("[\\s\\t]+");
+                    if (words.length < 2) {
+                        continue;
                     }
+
+                    List<String> items = new ArrayList<String>();
+                    for (int k = 0; k < words.length - 1; k++) {
+                        String csvItemIds = words[k];
+                        String[] itemIds = csvItemIds.split(",");
+                        for (String item : itemIds) {
+                            items.add(item);
+                        }
+                    }
+                    String finalWord = words[words.length - 1];
+                    int contador = Integer.parseInt(finalWord);
+                    // System.out.println(items + " --> " + supportCount);
+                    Registro reg = new Registro();
+                    reg.setItems(items);
+                    reg.setContador(contador);
+                    candidatosPassoAnterior.add(reg);
                 }
-                String finalWord = words[words.length - 1];
-                int contador = Integer.parseInt(finalWord);
-                // System.out.println(items + " --> " + supportCount);
-                Registro reg = new Registro();
-                reg.setItems(items);
-                reg.setContador(contador);
-                candidatosPassoAnterior.add(reg);
             }
         } catch (Exception e) {
         }

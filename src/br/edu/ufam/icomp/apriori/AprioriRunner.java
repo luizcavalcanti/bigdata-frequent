@@ -1,8 +1,10 @@
 package br.edu.ufam.icomp.apriori;
 
 import java.io.IOException;
+import java.net.URI;
 
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -63,13 +65,11 @@ public class AprioriRunner extends Configured implements Tool {
          * itemsets of pass K. So, storing the large itemsets of pass (K-1) in
          * distributed cache, so that it is accessible to pass K MR job.
          */
-        /*
-         * if (passo > 1) {
-         * DistributedCache.addCacheFile(URI.create("hdfs://127.0.0.1:54310" +
-         * saida + (passo - 1) + "/part-r-00000"), jobConfig);
-         * System.out.println
-         * ("Adicionado o resultado do passo 1 ao cache distribuido."); }
-         */
+
+        if (passo > 1) {
+            DistributedCache.addCacheFile(URI.create(saida + (passo - 1) + "/part-r-00000"), jobConfig);
+            System.out.println("Adicionado o resultado do passo "+(passo-1)+" ao cache distribuido.");
+        }
 
         Job job = new Job(jobConfig, "passo_" + passo);
         if (passo == 1) {
