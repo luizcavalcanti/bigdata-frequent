@@ -19,15 +19,15 @@ public class AprioriReduce extends Reducer<Text, IntWritable, Text, IntWritable>
             contador += valor.get();
         }
         // Removendo formatação de arraylist padrão do java
-        String itemsetIds = conjunto.toString();
-        itemsetIds = itemsetIds.replace("[", "");
-        itemsetIds = itemsetIds.replace("]", "");
-        itemsetIds = itemsetIds.replace(" ", "");
+        String registroPorExtenso = conjunto.toString();
+        registroPorExtenso = registroPorExtenso.replace("[", "");
+        registroPorExtenso = registroPorExtenso.replace("]", "");
+        registroPorExtenso = registroPorExtenso.replace(" ", "");
         float suporte = Float.parseFloat(contexto.getConfiguration().get("suporteMinimo"));
         int registros = contexto.getConfiguration().getInt("numeroRegistros", 2);
         // Se houver suporte mínimo, escreve registro e contador na saída
         if (possuiSuporteMinimo(suporte, registros, contador)) {
-            contexto.write(new Text(itemsetIds), new IntWritable(contador));
+            contexto.write(new Text(registroPorExtenso), new IntWritable(contador));
         }
     }
 

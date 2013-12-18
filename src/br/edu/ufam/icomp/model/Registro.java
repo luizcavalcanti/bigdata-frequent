@@ -16,7 +16,9 @@ public class Registro implements Comparable<Registro> {
     /**
      * Criar um objeto de registro a partir do conteúdo separado por vírgula do
      * arquivo original
-     * @param content linha do arquivo original
+     * 
+     * @param content
+     *            linha do arquivo original
      * @return Registro criado a partir da linha
      */
     public static Registro criar(String content) {
@@ -87,6 +89,11 @@ public class Registro implements Comparable<Registro> {
         return false;
     }
 
+    /**
+     * Gerador simples de hashcode, que se utiliza da implementação padrão de
+     * hashcode do ArrayList, quando disponível, ou uma constante prima, quando
+     * a lista for vazia
+     */
     @Override
     public int hashCode() {
         final int primo = 31;

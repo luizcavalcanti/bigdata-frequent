@@ -15,9 +15,8 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 
-import br.edu.ufam.icomp.model.HashTreeNode;
+import br.edu.ufam.icomp.model.NodoArvoreHash;
 import br.edu.ufam.icomp.model.Registro;
-import br.edu.ufam.icomp.util.HashTreeUtils;
 
 /**
  * Mapper para os passos posteriores ao primeiro no algoritmo Apriori. Se
@@ -31,30 +30,46 @@ public class AprioriMapPassoK extends Mapper<Object, Text, Text, IntWritable> {
 
     private List<Registro> candidatosPassoAnterior = new ArrayList<Registro>();
     private List<Registro> candidatosAtuais;
-    private HashTreeNode raizArvoreHash;
+    private NodoArvoreHash raizArvoreHash;
 
     @Override
     public void setup(Context context) throws IOException {
         // Path[] uris =
         // DistributedCache.getLocalCacheFiles(context.getConfiguration());
 
+        // Encontra caminho para arquivo de saída do passo anterior
         int passo = context.getConfiguration().getInt("passo", 2);
-        String outputPath = "/user/luiz/mushroom/output" + (passo - 1) + "/part-r-00000";
-        String opFileLastPass = context.getConfiguration().get("fs.default.name") + outputPath;
-        System.out.println("Distributed cache file to search " + opFileLastPass);
+        // TODO passar caminho por parametro de config
+        String arquivoDeSaida = "/user/luiz/mushroom/output" + (passo - 1) + "/part-r-00000";
+        String caminhoCompleto = context.getConfiguration().get("fs.default.name") + arquivoDeSaida;
 
+        extrairDadosPassoAnterior(context, caminhoCompleto);
+        // Carrega lista de novos candidatos (tamanho k)
+        candidatosAtuais = elegerCandidatos(candidatosPassoAnterior, (passo - 1));
+        // Adiciona
+        raizArvoreHash = constroiArvoreHash(candidatosAtuais, passo);
+    }
+
+    /**
+     * Lê arquivo da execução anterior e carrega a lista de candidatos
+     * (anteriores) com os dados desse mesmo arquivo
+     */
+    private void extrairDadosPassoAnterior(Context contexto, String caminhoCompleto) {
         try {
-            Path pt = new Path(opFileLastPass);
-            FileSystem fs = FileSystem.get(context.getConfiguration());
+            // Carrega arquivo e lê linha a linha
+            Path pt = new Path(caminhoCompleto);
+            FileSystem fs = FileSystem.get(contexto.getConfiguration());
             BufferedReader fis = new BufferedReader(new InputStreamReader(fs.open(pt)));
             String linha = null;
+            // Para cada linha (registro)...
             while ((linha = fis.readLine()) != null) {
                 linha = linha.trim();
+                // Separa os itens da contagem
                 String[] words = linha.split("[\\s\\t]+");
                 if (words.length < 2) {
                     continue;
                 }
-
+                // Cria uma lista a partir dos itens encontrados
                 List<String> items = new ArrayList<String>();
                 for (int k = 0; k < words.length - 1; k++) {
                     String csvItemIds = words[k];
@@ -63,9 +78,11 @@ public class AprioriMapPassoK extends Mapper<Object, Text, Text, IntWritable> {
                         items.add(item);
                     }
                 }
+                // Recupera a contagem do registro
                 String finalWord = words[words.length - 1];
                 int contador = Integer.parseInt(finalWord);
-                // System.out.println(items + " --> " + supportCount);
+
+                // Cria registro com as informações recuperadas
                 Registro reg = new Registro();
                 reg.setItems(items);
                 reg.setContador(contador);
@@ -73,94 +90,106 @@ public class AprioriMapPassoK extends Mapper<Object, Text, Text, IntWritable> {
             }
         } catch (Exception e) {
         }
-        candidatosAtuais = elegerCandidatos(candidatosPassoAnterior, (passo - 1));
-        raizArvoreHash = HashTreeUtils.buildHashTree(candidatosAtuais, passo);
-        // This would be changed later
     }
 
     public void map(Object key, Text registro, Context context) throws IOException, InterruptedException {
         Registro reg = Registro.criar(registro.toString());
-        List<Registro> candidatos = HashTreeUtils.findItemsets(raizArvoreHash, reg, 0);
+        // Procura na árvore de hash pelo candidato
+        List<Registro> candidatos = buscaRegistroArvoreHash(raizArvoreHash, reg, 0);
         item.set(reg.getItens().toString());
+        // Para cada candidato encontrado..
         for (Registro itemset : candidatos) {
+            // Adiciona <lista-de-itens, 1> na saída do Map
             item.set(itemset.getItens().toString());
             context.write(item, one);
         }
     }
 
-    private static List<Registro> elegerCandidatos(List<Registro> candidatosPassoAnterior, int itemSetSize) {
-        List<Registro> candidateItemsets = new ArrayList<Registro>();
-        List<String> newItems = null;
-        Map<Integer, List<Registro>> mapaDeHash = gerarMapaDeHash(candidatosPassoAnterior);
+    /**
+     * Escolhe a lista de candidatos para o passo k baseando-se na saída do
+     * passo k-1
+     */
+    private static List<Registro> elegerCandidatos(List<Registro> candidatosPassoAnterior, int itensPassoAnterior) {
+        List<Registro> novosCandidatos = new ArrayList<Registro>();
+        List<String> novosItens = null;
+        // Gera hashmap dos candidatos do passo anterior
+        Map<Integer, List<Registro>> hashMapCandidatosPassoAnterior = gerarHashMap(candidatosPassoAnterior);
+        // Ordena candidatos para facilitar busca
         Collections.sort(candidatosPassoAnterior);
 
+        // Gera todos os subconjuntos possíveis para os candidatos
         for (int i = 0; i < (candidatosPassoAnterior.size() - 1); i++) {
             for (int j = i + 1; j < candidatosPassoAnterior.size(); j++) {
-                List<String> outerItems = candidatosPassoAnterior.get(i).getItens();
-                List<String> innerItems = candidatosPassoAnterior.get(j).getItens();
+                List<String> itensExcluidos = candidatosPassoAnterior.get(i).getItens();
+                List<String> itensIncluidos = candidatosPassoAnterior.get(j).getItens();
 
-                if ((itemSetSize - 1) > 0) {
-                    boolean isMatch = true;
-                    for (int k = 0; k < (itemSetSize - 1); k++) {
-                        if (!outerItems.get(k).equals(innerItems.get(k))) {
-                            isMatch = false;
+                if ((itensPassoAnterior - 1) > 0) {
+                    boolean repetido = true;
+                    for (int k = 0; k < (itensPassoAnterior - 1); k++) {
+                        if (!itensExcluidos.get(k).equals(itensIncluidos.get(k))) {
+                            repetido = false;
                             break;
                         }
                     }
 
-                    if (isMatch) {
-                        newItems = new ArrayList<String>();
-                        newItems.addAll(outerItems);
-                        newItems.add(innerItems.get(itemSetSize - 1));
+                    if (repetido) {
+                        novosItens = new ArrayList<String>();
+                        novosItens.addAll(itensExcluidos);
+                        novosItens.add(itensIncluidos.get(itensPassoAnterior - 1));
 
-                        Registro newItemSet = new Registro(newItems, 0);
-                        if (prune(mapaDeHash, newItemSet)) {
-                            candidateItemsets.add(newItemSet);
+                        Registro novoItem = new Registro(novosItens, 0);
+                        if (prune(hashMapCandidatosPassoAnterior, novoItem)) {
+                            novosCandidatos.add(novoItem);
                         }
                     }
                 } else {
-                    // TODO entender esse trecho
-                    // if (outerItems.get(0) < innerItems.get(0)) {
-                    newItems = new ArrayList<String>();
-                    newItems.add(outerItems.get(0));
-                    newItems.add(innerItems.get(0));
-
-                    Registro newItemSet = new Registro(newItems, 0);
-
-                    candidateItemsets.add(newItemSet);
-                    // }
+                    if (!itensExcluidos.get(0).equals(itensIncluidos.get(0))) {
+                        novosItens = new ArrayList<String>();
+                        novosItens.add(itensExcluidos.get(0));
+                        novosItens.add(itensIncluidos.get(0));
+                        Registro newItemSet = new Registro(novosItens, 0);
+                        novosCandidatos.add(newItemSet);
+                    }
                 }
             }
         }
-        return candidateItemsets;
+        return novosCandidatos;
     }
 
-    public static Map<Integer, List<Registro>> gerarMapaDeHash(List<Registro> registros) {
-        Map<Integer, List<Registro>> largeItemsetMap = new HashMap<Integer, List<Registro>>();
+    /**
+     * Criar hashmap de registros utilizando a função hash da classe Registro
+     * como chave. Agrupa os registros em 'buckets' de acordo com o resultado de
+     * sua função hash
+     */
+    public static Map<Integer, List<Registro>> gerarHashMap(List<Registro> registros) {
+        Map<Integer, List<Registro>> retorno = new HashMap<Integer, List<Registro>>();
 
-        List<Registro> itemsets = null;
+        List<Registro> bucket = null;
         for (Registro reg : registros) {
             int hashCode = reg.hashCode();
-            if (largeItemsetMap.containsKey(hashCode)) {
-                itemsets = largeItemsetMap.get(hashCode);
+            if (retorno.containsKey(hashCode)) {
+                bucket = retorno.get(hashCode);
             } else {
-                itemsets = new ArrayList<Registro>();
+                bucket = new ArrayList<Registro>();
             }
 
-            itemsets.add(reg);
-            largeItemsetMap.put(hashCode, itemsets);
+            bucket.add(reg);
+            retorno.put(hashCode, bucket);
         }
 
-        return largeItemsetMap;
+        return retorno;
     }
 
-    private static boolean prune(Map<Integer, List<Registro>> largeItemsetsMap, Registro newItemset) {
-        List<Registro> subsets = gerarSubconjuntos(newItemset);
-        for (Registro r : subsets) {
+    /**
+     * Procura por subconjuntos do registro solicitado no hashmap de candidatos
+     */
+    private static boolean prune(Map<Integer, List<Registro>> hashMap, Registro novoRegistro) {
+        List<Registro> subconjuntos = gerarSubconjuntos(novoRegistro);
+        for (Registro r : subconjuntos) {
             boolean contains = false;
             int hashCodeToSearch = r.hashCode();
-            if (largeItemsetsMap.containsKey(hashCodeToSearch)) {
-                List<Registro> candidateItemsets = largeItemsetsMap.get(hashCodeToSearch);
+            if (hashMap.containsKey(hashCodeToSearch)) {
+                List<Registro> candidateItemsets = hashMap.get(hashCodeToSearch);
                 for (Registro itemset : candidateItemsets) {
                     if (itemset.equals(r)) {
                         contains = true;
@@ -172,7 +201,6 @@ public class AprioriMapPassoK extends Mapper<Object, Text, Text, IntWritable> {
             if (!contains)
                 return false;
         }
-
         return true;
     }
 
@@ -185,7 +213,7 @@ public class AprioriMapPassoK extends Mapper<Object, Text, Text, IntWritable> {
      * @return Lista de subconjuntos
      */
     private static List<Registro> gerarSubconjuntos(Registro reg) {
-        List<Registro> subsets = new ArrayList<Registro>();
+        List<Registro> subconjuntos = new ArrayList<Registro>();
         List<String> itens = reg.getItens();
         for (int i = 0; i < itens.size(); i++) {
             List<String> currItems = new ArrayList<String>(itens);
@@ -193,8 +221,66 @@ public class AprioriMapPassoK extends Mapper<Object, Text, Text, IntWritable> {
             currItems.remove(itens.size() - 1 - i);
             // cria conjunto com todos os itens, menos o que acabou de ser
             // removido
-            subsets.add(new Registro(currItems, 0));
+            subconjuntos.add(new Registro(currItems, 0));
         }
-        return subsets;
+        return subconjuntos;
     }
+
+    /**
+     * Constrói uma árvore de hash a partir da lista de candidatos
+     */
+    public static NodoArvoreHash constroiArvoreHash(List<Registro> candidatos, int tamanhoRegistro) {
+        NodoArvoreHash raiz = new NodoArvoreHash();
+
+        NodoArvoreHash pai = null;
+        NodoArvoreHash nodoAtual = null;
+        for (Registro reg : candidatos) {
+            pai = null;
+            nodoAtual = raiz;
+            for (int i = 0; i < tamanhoRegistro; i++) {
+                String item = reg.getItens().get(i);
+                Map<String, NodoArvoreHash> mapa = nodoAtual.getMapa();
+                pai = nodoAtual;
+
+                if (mapa.containsKey(item)) {
+                    nodoAtual = mapa.get(item);
+                } else {
+                    nodoAtual = new NodoArvoreHash();
+                    mapa.put(item, nodoAtual);
+                }
+                pai.setMapa(mapa);
+            }
+
+            nodoAtual.setNodoFolha(true);
+            List<Registro> registros = nodoAtual.getRegistros();
+            registros.add(reg);
+            nodoAtual.setRegistros(registros);
+        }
+
+        return raiz;
+    }
+
+    /**
+     * Retorna um conjunto de registros de uma árvore de hash de candidatos.
+     */
+    public static List<Registro> buscaRegistroArvoreHash(NodoArvoreHash nodoRaiz, Registro reg, int indice) {
+        if (nodoRaiz.isNodoFolha()) {
+            return nodoRaiz.getRegistros();
+        }
+
+        List<Registro> registrosEncontrados = new ArrayList<Registro>();
+        for (int i = indice; i < reg.getItens().size(); i++) {
+            String item = reg.getItens().get(i);
+            Map<String, NodoArvoreHash> mapa = nodoRaiz.getMapa();
+
+            if (!mapa.containsKey(item)) {
+                continue;
+            }
+            List<Registro> itemset = buscaRegistroArvoreHash(mapa.get(item), reg, i + 1);
+            registrosEncontrados.addAll(itemset);
+        }
+
+        return registrosEncontrados;
+    }
+
 }
