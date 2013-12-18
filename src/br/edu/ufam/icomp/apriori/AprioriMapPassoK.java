@@ -19,6 +19,11 @@ import br.edu.ufam.icomp.model.HashTreeNode;
 import br.edu.ufam.icomp.model.Registro;
 import br.edu.ufam.icomp.util.HashTreeUtils;
 
+/**
+ * Mapper para os passos posteriores ao primeiro no algoritmo Apriori. Se
+ * utiliza da saída do passo anterior para formar novos candidatos e depois
+ * fazer a contagem de ocorrências.
+ */
 public class AprioriMapPassoK extends Mapper<Object, Text, Text, IntWritable> {
 
     private final static IntWritable one = new IntWritable(1);
@@ -26,7 +31,7 @@ public class AprioriMapPassoK extends Mapper<Object, Text, Text, IntWritable> {
 
     private List<Registro> candidatosPassoAnterior = new ArrayList<Registro>();
     private List<Registro> candidatosAtuais;
-    private HashTreeNode hashTreeRootNode;
+    private HashTreeNode raizArvoreHash;
 
     @Override
     public void setup(Context context) throws IOException {
@@ -69,13 +74,13 @@ public class AprioriMapPassoK extends Mapper<Object, Text, Text, IntWritable> {
         } catch (Exception e) {
         }
         candidatosAtuais = elegerCandidatos(candidatosPassoAnterior, (passo - 1));
-        hashTreeRootNode = HashTreeUtils.buildHashTree(candidatosAtuais, passo);
+        raizArvoreHash = HashTreeUtils.buildHashTree(candidatosAtuais, passo);
         // This would be changed later
     }
 
     public void map(Object key, Text registro, Context context) throws IOException, InterruptedException {
         Registro reg = Registro.criar(registro.toString());
-        List<Registro> candidatos = HashTreeUtils.findItemsets(hashTreeRootNode, reg, 0);
+        List<Registro> candidatos = HashTreeUtils.findItemsets(raizArvoreHash, reg, 0);
         item.set(reg.getItens().toString());
         for (Registro itemset : candidatos) {
             item.set(itemset.getItens().toString());

@@ -5,11 +5,20 @@ import java.util.Collections;
 import java.util.List;
 import java.util.StringTokenizer;
 
+/**
+ * Classe de modelo que representa um registro no conjunto de dados.
+ */
 public class Registro implements Comparable<Registro> {
 
     private List<String> itens = new ArrayList<String>();
     private int contador;
 
+    /**
+     * Criar um objeto de registro a partir do conteúdo separado por vírgula do
+     * arquivo original
+     * @param content linha do arquivo original
+     * @return Registro criado a partir da linha
+     */
     public static Registro criar(String content) {
         Registro reg = new Registro();
         StringTokenizer st = new StringTokenizer(content, ",");
@@ -80,9 +89,10 @@ public class Registro implements Comparable<Registro> {
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((itens == null) ? 0 : itens.hashCode());
-        return result;
+        final int primo = 31;
+        int resultado = 1;
+        // Gera um hash baseado no hash da lista de itens (se houver)
+        resultado = primo * resultado + ((itens == null) ? 0 : itens.hashCode());
+        return resultado;
     }
 }
