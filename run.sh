@@ -7,8 +7,8 @@ HFS_INPUT_DIR=$HFS_BASE_DIR/input
 HFS_OUTPUT_DIR=$HFS_BASE_DIR/output
 
 #### variáveis do experimento ####
-NUMERO_PASSOS=20 # número de passos a serem executados (define o tamanho de k)
-LIMIAR_SUPORTE=0.2 # percentual de suporte para frequência
+NUMERO_PASSOS=4 # número de passos a serem executados (define o tamanho de k)
+LIMIAR_SUPORTE=0.70 # percentual de suporte para frequência
 TAMANHO_DADOS=0 # numero total de registros, será atribuído depois da conversão de dados
 
 # converte dados para formato mais legível/rastreável

@@ -10,6 +10,7 @@ import java.util.Map;
  * dados.
  */
 public class NodoArvoreHash {
+
     private Map<String, NodoArvoreHash> mapa;
     private boolean nodoFolha;
     private List<Registro> registros;

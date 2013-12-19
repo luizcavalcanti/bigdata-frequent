@@ -13,7 +13,7 @@ Software necessário:
 Passo a passo:
 
     1) Edite o arquivo build.xml e altere o valor da propriedade "hadoop.dir" para apontar para o diretório raiz da instalação do hadoop em seu ambiente. É importante notar que esse é o diretório que deve conter o arquivo hadoop-core-<versão>.jar
-    2) Execute o build através do comando "ant build.xml", pressupondo que o utilitário "ant" esteja em seu PATH e o java esteja devidamente configurado. O pacote do programa estará disponível em dist/frequent.jar;
+    2) Execute o build através do comando "ant build.xml", pressupondo que o utilitário "ant" esteja em seu PATH e o java esteja devidamente configurado. Após a compilação, o pacote binário estará disponível em dist/frequent.jar;
     3) Edite o arquivo run.sh (Mac OS X ou Linux/Unix/BSD) a fim de ajustar as variáveis a seguir:
         a) HADOOP_BASE - Deve apontar para o diretório raiz da instalação do hadoop (mesmo valor requerido no passo 1);
         b) HFS_BASE_DIR - Diretório do sistema de arquivos distribuído onde serão criados os diretórios de entrada e saída dos dados a serem processados. O diretório deve existir previamente, podendo ser criado com o comando "hadoop dfs -mkdir /caminho/para/o/diretorio;
